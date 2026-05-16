@@ -17,7 +17,7 @@ const CONFIG = {
   /* ════════════════════════════════════════════════════════
      🏢  YOUR COMPANY (if present in data, highlights gold)
   ════════════════════════════════════════════════════════ */
-  YOUR_COMPANY: "",
+  YOUR_COMPANY: "Prime Lands",
 
   /* ════════════════════════════════════════════════════════
      📊  DASHBOARD TITLES
