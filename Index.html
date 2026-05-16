@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sri Lanka Land Market — Competitor Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Nunito:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="config.js"></script>
+  <style>
+    /* minor inline overrides to maintain cleanliness */
+    .fb-table-container { max-height: 380px; overflow-y: auto; }
+    .fb-table-container table td, .fb-table-container table th { white-space: nowrap; }
+    .badge-new { background: rgba(212,167,116,.12); color: var(--gold); border:1px solid rgba(212,167,116,.3); }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">LOADING DASHBOARD...</div>
+</div>
+
+<header class="header">
+  <div>
+    <h1 id="hTitle">Land Market — Competitor Analysis</h1>
+    <div class="sub" id="hSub">Real Estate Land Data Dashboard · 2026</div>
+  </div>
+  <!-- header-stats removed as requested -->
+</header>
+
+<div class="status-bar">
+  <span class="status-dot"></span>
+  <span id="dataSource" class="source-label">Initialising...</span>
+  <button class="refresh-btn" onclick="loadAndRender()">⟳ Refresh Data</button>
+</div>
+
+<div class="grid">
+
+  <!-- KPI ROW: only Companies Tracked, Total Projects, Unique Locations -->
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi-card">
+      <div class="kpi-lbl">Companies Tracked</div>
+      <div class="kpi-val" id="kpi1">—</div>
+      <div class="kpi-sub">Active players</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-lbl">Total Projects</div>
+      <div class="kpi-val" id="kpi2">—</div>
+      <div class="kpi-sub">All statuses</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-lbl">Unique Locations</div>
+      <div class="kpi-val" id="kpi6">—</div>
+      <div class="kpi-sub">Districts / areas</div>
+    </div>
+  </div>
+
+  <div class="section-label">📊 Company Intelligence</div>
+
+  <!-- COMPANY MARKET PRESENCE (bubble) : Years vs Projects, bubble size = total projects -->
+  <div class="card span-8">
+    <div class="card-title"><span>🫧</span> Company Market Presence</div>
+    <div class="card-sub">Years in market vs. project count — bubble size = total number of projects</div>
+    <div class="ch ch-480"><canvas id="bubbleChart"></canvas></div>
+  </div>
+
+  <!-- COMPANY ESTABLISHMENT TIMELINE (horizontal bar) -->
+  <div class="card span-4">
+    <div class="card-title"><span>⏳</span> Company Establishment Timeline</div>
+    <div class="card-sub">Years each company has been operating</div>
+    <div class="ch ch-480"><canvas id="ageChart"></canvas></div>
+  </div>
+
+  <!-- PROJECT STATUS BREAKDOWN BY COMPANY (stacked bar) -->
+  <div class="card span-12">
+    <div class="card-title"><span>📋</span> Project Status Breakdown by Company</div>
+    <div class="card-sub">Available / Sold Out / Trending / Featured / Other per company</div>
+    <div class="status-legend" id="statusLegend"></div>
+    <div class="ch ch-400"><canvas id="stackedBar"></canvas></div>
+  </div>
+
+  <div class="section-label">📍 Location & Pricing Intelligence</div>
+
+  <!-- TOP LOCATIONS BY PROJECT COUNT -->
+  <div class="card span-6">
+    <div class="card-title"><span>📍</span> Top Locations by Project Count</div>
+    <div class="card-sub">Most active areas across all companies</div>
+    <div class="ch ch-480"><canvas id="locationBar"></canvas></div>
+  </div>
+
+  <!-- AVG PRICE / PERCH BY LOCATION -->
+  <div class="card span-6">
+    <div class="card-title"><span>💰</span> Average Price / Perch by Location</div>
+    <div class="card-sub">Locations with sufficient pricing data (LKR per perch)</div>
+    <div class="ch ch-480"><canvas id="locationPriceBar"></canvas></div>
+  </div>
+
+  <!-- PLOT SIZE ANALYSIS (BARS only, price line removed) -->
+  <div class="card span-12">
+    <div class="card-title"><span>📐</span> Plot Size Analysis (Perches)</div>
+    <div class="card-sub">Project count per plot size bucket — identify most common sizes</div>
+    <div class="ch ch-300"><canvas id="plotSizeBar"></canvas></div>
+    <div class="insight">
+      <h4>💡 Plot Size Insight</h4>
+      <p id="plotInsight">Calculating...</p>
+    </div>
+  </div>
+
+  <div class="section-label">📱 Facebook Active Campaigns</div>
+
+  <!-- NEW: AVAILABLE ACTIVE LANDS (facebook data only) -->
+  <div class="card span-6">
+    <div class="card-title"><span>📢</span> Available Active Lands — Facebook Ads</div>
+    <div class="card-sub">Live promotions from Facebook (company, location, price, date)</div>
+    <div class="fb-table-container tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Company</th><th>Location</th><th>Price (LKR)</th><th>Published Date</th></tr>
+        </thead>
+        <tbody id="fbActiveTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NEW: AVAILABLE PROJECTS – INVESTMENT OPPORTUNITIES (facebook data only) -->
+  <div class="card span-6">
+    <div class="card-title"><span>🎯</span> Available Projects — Investment Opportunities</div>
+    <div class="card-sub">Active Facebook listings, sorted by recency (best opportunities)</div>
+    <div class="fb-table-container tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Company</th><th>Location</th><th>Price (LKR)</th><th>Published Date</th><th>Opportunity</th></tr>
+        </thead>
+        <tbody id="fbOpportunitiesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY & STRATEGIC INSIGHTS (keep as is) -->
+  <div class="card span-12">
+    <div class="card-title"><span>📝</span> Executive Summary & Strategic Insights
+      <span style="font-size:0.7em;color:var(--text-secondary);font-weight:400;letter-spacing:0;text-transform:none;margin-left:8px">
+        (edit text in config.js → INSIGHTS array)
+      </span>
+    </div>
+    <div class="summary-grid" id="insightGrid"></div>
+  </div>
+
+</div>
+
+<script>
+/* ========== GLOBAL CONFIG & COLOR PALETTE ========== */
+const C = {
+  gold:'#d4a574', goldLight:'#e8c9a0',
+  blue:'#4a90d9', green:'#2ecc71', red:'#e74c3c',
+  purple:'#9b59b6', cyan:'#00bcd4', orange:'#f39c12',
+  text:'#a0a0b0', border:'rgba(42,42,74,0.5)'
+};
+const MULTI = [C.blue,C.green,C.purple,C.cyan,C.orange,C.red,
+  '#52be80','#3498db','#8e44ad','#1abc9c','#e67e22','#c0392b',
+  '#27ae60','#2980b9','#d35400','#16a085'];
+Chart.defaults.color = C.text;
+Chart.defaults.borderColor = C.border;
+Chart.defaults.font.family = "'Nunito', sans-serif";
+
+/* ========== HELPER FUNCTIONS (PRICE, STATUS, YEAR, etc) ========== */
+function cleanPrice(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s || s === 'nan' || s === 'None' || s === 'N/A') return null;
+  const minP = (CONFIG.MIN_VALID_PRICE) || 50000;
+  const maxP = (CONFIG.MAX_VALID_PRICE) || 15000000;
+  const parts = s.split(/\s*[_\u2013\u2014]\s*/);
+  const nums = [];
+  for (const p of parts) {
+    const digits = p.replace(/[^\d]/g, '');
+    if (!digits || digits.length < 4) continue;
+    const n = parseInt(digits, 10);
+    if (n >= minP && n <= maxP) nums.push(n);
+  }
+  if (!nums.length) return null;
+  return nums.reduce((a,b)=>a+b,0)/nums.length;
+}
+function cleanNum(raw) {
+  if (raw === null || raw === undefined) return null;
+  const digits = String(raw).replace(/[^\d.]/g, '').trim();
+  const n = parseFloat(digits);
+  return isNaN(n) ? null : n;
+}
+function normStatus(s) {
+  s = String(s || '').trim().toLowerCase();
+  if (['available','avalibale','avalable','for sale'].includes(s)) return 'Available';
+  if (['sold out','sold out ','sold','almost sold','soldout'].includes(s)) return 'Sold Out';
+  if (s === 'trending') return 'Trending';
+  if (s === 'featured') return 'Featured';
+  if (['coming soon','up coming','upcoming'].includes(s)) return 'Coming Soon';
+  if (['ongoing','new','ongoing projects'].includes(s)) return 'Ongoing';
+  return 'Other';
+}
+function parseYear(v) { const m = String(v || '').match(/20\d\d|19\d\d/); return m ? parseInt(m[0]) : null; }
+function fmtPrice(v) {
+  if (!v || v <= 0) return 'N/A';
+  if (v >= 1000000) return 'Rs. ' + (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000) return 'Rs. ' + Math.round(v / 1000) + 'K';
+  return 'Rs. ' + Math.round(v).toLocaleString();
+}
+const trunc = (s, n) => (!s || s.length <= n) ? (s||'') : s.substring(0,n)+'…';
+const myColor = (name, i) => (CONFIG.YOUR_COMPANY && name === CONFIG.YOUR_COMPANY) ? C.gold : MULTI[i % MULTI.length];
+
+/* ========== FACEBOOK ADS DATA (embedded from provided file) ========== */
+const FACEBOOK_ADS_RAW = [
+  {Company:"Empire Lands", Location:"Thalawathugoda", Price:null, PubDate:"2026-05-09"},
+  {Company:"Empire Lands", Location:"Polgasowita", Price:1250000, PubDate:"2026-05-01"},
+  {Company:"Empire Lands", Location:"Piliyandala", Price:975000, PubDate:"2026-05-11"},
+  {Company:"Empire Lands", Location:"Dambadeniya", Price:290000, PubDate:"2026-05-01"},
+  {Company:"Empire Lands", Location:"Panadura", Price:null, PubDate:"2026-05-03"},
+  {Company:"Empire Lands", Location:"Malabe", Price:1150000, PubDate:"2026-05-01"},
+  {Company:"Empire Lands", Location:"Kandana", Price:null, PubDate:"2026-05-05"},
+  {Company:"Empire Lands", Location:"Ja-Ela", Price:null, PubDate:"2026-05-01"},
+  {Company:"Home lands", Location:"Ella", Price:400000, PubDate:"2026-01-27"},
+  {Company:"Home lands", Location:"Piliyandala", Price:1100000, PubDate:"2026-02-10"},
+  {Company:"Home lands", Location:"Nuwara Eliya", Price:2200000, PubDate:"2026-04-29"},
+  {Company:"Home lands", Location:"Hapugala", Price:400000, PubDate:"2026-04-23"},
+  {Company:"Home lands", Location:"Piliyandala", Price:710000, PubDate:"2026-03-16"},
+  {Company:"Home lands", Location:"Hikkaduwa", Price:365000, PubDate:"2026-03-05"},
+  {Company:"Home lands", Location:"Dodangoda", Price:420000, PubDate:"2026-02-28"},
+  {Company:"Home lands", Location:"Panagoda", Price:650000, PubDate:"2026-03-17"},
+  {Company:"Home lands", Location:"Karapitiya", Price:495000, PubDate:"2026-04-30"},
+  {Company:"Home lands", Location:"Galle", Price:280000, PubDate:"2026-02-08"},
+  {Company:"Home lands", Location:"Malabe", Price:950000, PubDate:"2026-02-10"},
+  {Company:"Home lands", Location:"Gampaha", Price:1400000, PubDate:"2026-05-09"},
+  {Company:"Home lands", Location:"Kuliyapitiya", Price:122000, PubDate:"2026-03-23"},
+  {Company:"Home lands", Location:"Bandaragama", Price:320000, PubDate:"2026-02-08"},
+  {Company:"Home lands", Location:"Pinnaduwa", Price:195000, PubDate:"2026-02-09"},
+  {Company:"Home lands", Location:"Bathalagoda", Price:350000, PubDate:"2026-04-29"},
+  {Company:"Home lands", Location:"Kosgama", Price:170000, PubDate:"2026-04-06"},
+  {Company:"Home lands", Location:"mathale", Price:330000, PubDate:"2026-04-30"},
+  {Company:"Home lands", Location:"athurugiriya", Price:650000, PubDate:"2026-04-28"},
+  {Company:"Home lands", Location:"Padukka", Price:247000, PubDate:"2026-05-04"},
+  {Company:"Home lands", Location:"Homagama", Price:null, PubDate:"2026-04-28"},
+  {Company:"Home lands", Location:"Malabe", Price:1875000, PubDate:"2026-02-10"},
+  {Company:"Home lands", Location:"Wadduwa", Price:328000, PubDate:"2026-05-08"},
+  {Company:"Home lands", Location:"Meetiyagoda", Price:252000, PubDate:"2026-04-30"},
+  {Company:"Home lands", Location:"Karapitiya", Price:220000, PubDate:"2026-04-08"},
+  {Company:"Home lands", Location:"Uhumiya", Price:217500, PubDate:"2026-05-04"},
+  {Company:"Home lands", Location:"Udugampola", Price:480000, PubDate:"2026-05-08"},
+  {Company:"Home lands", Location:"Meepe", Price:230000, PubDate:"2026-05-06"},
+  {Company:"Home lands", Location:"Narammala", Price:90000, PubDate:"2026-05-06"},
+  {Company:"Home lands", Location:"Hikkaduwa", Price:250000, PubDate:"2026-03-05"},
+  {Company:"Home lands", Location:"Ibbagamuwa", Price:88500, PubDate:"2026-05-04"},
+  {Company:"Home lands", Location:"Baddegama", Price:200000, PubDate:"2026-02-09"},
+  {Company:"Araliya Lands & Homes", Location:"Horana", Price:90000, PubDate:"2026-05-08"},
+  {Company:"Araliya Lands & Homes", Location:"Hoamagama - Kiriwaththuduwa", Price:990000, PubDate:"2026-05-09"},
+  {Company:"Araliya Lands & Homes", Location:"Kadawatha - Webada", Price:650000, PubDate:"2026-04-24"},
+  {Company:"Araliya Lands & Homes", Location:"Kadawatha - Trackmo Junction", Price:830000, PubDate:"2026-04-24"},
+  {Company:"Promise land Developers", Location:"Athurugiriya, Colombo", Price:1100000, PubDate:"2026-03-26"},
+  {Company:"Promise land Developers", Location:"Gorakana", Price:900000, PubDate:"2026-04-06"},
+  {Company:"Promise land Developers", Location:"Hirana, Panadura", Price:495000, PubDate:"2026-02-27"},
+  {Company:"Promise land Developers", Location:"Panadura", Price:595000, PubDate:"2026-04-28"},
+  {Company:"Commercial Reality", Location:"Kuruwita, Rathnapura", Price:95000, PubDate:"2026-04-16"},
+  {Company:"Commercial Reality", Location:"Gonapola Thalagala", Price:290000, PubDate:"2026-01-30"},
+  {Company:"Commercial Reality", Location:"Deniyaya,Waralla", Price:95000, PubDate:"2026-05-01"},
+  {Company:"Ground Worth", Location:"Hokandara", Price:1950000, PubDate:"2026-04-20"},
+  {Company:"Ground Worth", Location:"Piliyandala,Polgasowita", Price:1200000, PubDate:"2026-04-28"},
+  {Company:"Master Lands & Investment", Location:"Marawila", Price:575000, PubDate:"2026-05-11"},
+  {Company:"Master Lands & Investment", Location:"GANEMULLA", Price:1550000, PubDate:"2026-05-11"},
+  {Company:"Golden Gate", Location:"Matara,Kakanadura", Price:500000, PubDate:"2026-04-27"},
+  {Company:"Golden Gate", Location:"Mahabage", Price:650000, PubDate:"2026-04-27"},
+  {Company:"Golden Gate", Location:"Gampaha,Yakkala", Price:410000, PubDate:"2026-05-06"},
+  {Company:"Siri Pala Lands", Location:"Pothuhera", Price:259000, PubDate:"2026-05-04"},
+  {Company:"Summit Capital", Location:"Kesbewa, Polgasowita", Price:800000, PubDate:"2026-02-11"},
+  {Company:"Summit Capital", Location:"Homagama, Pitipana", Price:595000, PubDate:"2026-02-11"},
+  {Company:"Summit Capital", Location:"Nittambuwa", Price:495000, PubDate:"2026-01-26"},
+  {Company:"Seven Seas Group", Location:"Athurugiriya", Price:1250000, PubDate:"2026-04-29"},
+  {Company:"TREASURE SPACE", Location:"Pitipana, Homagama", Price:270000, PubDate:"2026-04-28"},
+  {Company:"winroseproperty", Location:"Pannala", Price:150000, PubDate:"2026-04-28"},
+  {Company:"winroseproperty", Location:"Matale,Ibuldeniya", Price:150000, PubDate:"2026-04-22"},
+  {Company:"winroseproperty", Location:"Matale,Palapathwala", Price:150000, PubDate:"2026-04-23"},
+  {Company:"winroseproperty", Location:"Katunayake,Minuwangoda", Price:300000, PubDate:"2026-04-27"},
+  {Company:"winroseproperty", Location:"Kurunegala,Uhumeeya", Price:75000, PubDate:"2026-04-28"},
+  {Company:"winroseproperty", Location:"Alawwa", Price:300000, PubDate:"2026-05-01"},
+  {Company:"winroseproperty", Location:"Ragama,Batuwaththa", Price:400000, PubDate:"2026-04-20"},
+  {Company:"winroseproperty", Location:"Thalgodapitiya,Ibbagamuwa", Price:185000, PubDate:"2026-05-09"},
+  {Company:"winroseproperty", Location:"Kurunegala,kiriwawula", Price:175000, PubDate:"2026-05-09"},
+  {Company:"winroseproperty", Location:"Hokandara", Price:600000, PubDate:"2026-05-09"},
+  {Company:"winroseproperty", Location:"Yakkala,Gampaha", Price:650000, PubDate:"2026-05-11"},
+  {Company:"Living Land", Location:"Yakkala", Price:null, PubDate:"2026-05-09"},
+  {Company:"Latitude Land", Location:"Rekawa", Price:245000, PubDate:"2026-04-30"},
+  {Company:"Latitude Land", Location:"Kadawatha", Price:875000, PubDate:"2026-04-23"},
+  {Company:"Latitude Land", Location:"Beliaththa", Price:425000, PubDate:"2026-04-23"},
+  {Company:"Guardian Real Estate", Location:"Homagama,Wataraka", Price:300000, PubDate:"2026-05-06"},
+  {Company:"Guardian Real Estate", Location:"Ja-ela,Kotugoda", Price:380000, PubDate:"2026-05-09"},
+];
+const facebookAds = FACEBOOK_ADS_RAW.filter(ad => ad.Company && ad.Location && ad.Price !== null && ad.Price > 0).map(ad => ({
+  ...ad, Price: typeof ad.Price === 'string' ? parseInt(ad.Price.replace(/,/g,'')) : ad.Price
+}));
+facebookAds.sort((a,b) => new Date(b.PubDate) - new Date(a.PubDate));
+
+/* ========== CHART REGISTRY ========== */
+const charts = {};
+function mkChart(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id).getContext('2d'), cfg); }
+
+/* ========== MAIN RENDER (core project data) ========== */
+function renderDashboard(data) {
+  const CFG = CONFIG || {};
+  document.getElementById('hTitle').textContent = CFG.DASHBOARD_TITLE || 'Land Market Dashboard';
+  document.getElementById('hSub').textContent = CFG.DASHBOARD_SUBTITLE || '';
+
+  /* aggregate companies */
+  const companies = {};
+  data.forEach(r => {
+    if (!companies[r.co]) companies[r.co] = { name:r.co, yr:r.yr, projects:0, statuses:{}, blocks:0 };
+    const c = companies[r.co];
+    c.projects++;
+    if (r.tb) c.blocks += r.tb;
+    c.statuses[r.st] = (c.statuses[r.st] || 0) + 1;
+    if (!c.yr && r.yr) c.yr = r.yr;
+  });
+  const coList = Object.values(companies).sort((a,b) => b.projects - a.projects);
+  const totalPr = data.length;
+  const locs = new Set(data.map(r => r.loc));
+  document.getElementById('kpi1').textContent = coList.length;
+  document.getElementById('kpi2').textContent = totalPr.toLocaleString();
+  document.getElementById('kpi6').textContent = locs.size;
+
+  /* BUBBLE CHART: Years vs projects, bubble size = projects count (not blocks) */
+  const top10 = coList.slice(0,10);
+  const maxProj = Math.max(...top10.map(c => c.projects), 1);
+  mkChart('bubbleChart', {
+    type:'bubble',
+    data:{ datasets: top10.map((c,i) => ({
+      label: c.name,
+      data: [{ x: c.yr ? (CFG.CURRENT_YEAR||2026)-c.yr : 5, y: c.projects, r: Math.max(8, Math.round((c.projects / maxProj) * 45)) }],
+      backgroundColor: myColor(c.name,i)+'bb', borderColor: myColor(c.name,i),
+      borderWidth: (CFG.YOUR_COMPANY && c.name === CFG.YOUR_COMPANY) ? 3 : 1.5
+    }))},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, font:{size:10} } }, tooltip:{ callbacks:{ label: ctx => { const c = top10[ctx.datasetIndex]; return [`${c.name}`, `Years: ${c.yr ? (CFG.CURRENT_YEAR||2026)-c.yr : '?'}`, `Projects: ${c.projects}`]; } } } }, scales:{ x:{ title:{ display:true, text:'Years in Business', color:C.gold }, grid:{ color:C.border } }, y:{ title:{ display:true, text:'Projects in Database', color:C.gold }, grid:{ color:C.border } } } }
+  });
+
+  /* TIMELINE (years) */
+  const coWithYr = coList.filter(c => c.yr).sort((a,b)=>a.yr-b.yr).slice(0,16);
+  mkChart('ageChart', {
+    type:'bar', data:{ labels: coWithYr.map(c=>trunc(c.name,14)), datasets:[{ label:'Years', data: coWithYr.map(c=>(CFG.CURRENT_YEAR||2026)-c.yr), backgroundColor: coWithYr.map((c,i)=>myColor(c.name,i)+'88'), borderColor: coWithYr.map((c,i)=>myColor(c.name,i)), borderWidth:1, borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => `${ctx.raw} years (founded ${coWithYr[ctx.dataIndex].yr})` } } }, scales:{ x:{ title:{ display:true, text:'Years', color:C.gold }, grid:{ color:C.border } }, y:{ grid:{ display:false }, ticks:{ font:{ size:9 } } } } }
+  });
+
+  /* STACKED STATUS */
+  const statusKeys = ['Available','Sold Out','Trending','Featured','Coming Soon','Ongoing'];
+  const statusCols = [C.green,C.red,C.orange,C.purple,C.cyan,C.blue];
+  const stackCo = coList.slice(0, CFG.TOP_COMPANIES_COUNT || 12);
+  mkChart('stackedBar', {
+    type:'bar', data:{ labels: stackCo.map(c=>trunc(c.name,14)), datasets: statusKeys.map((s,i)=>({ label:s, data: stackCo.map(c=>c.statuses[s]||0), backgroundColor: statusCols[i]+'99', borderColor: statusCols[i], borderWidth:1, borderRadius:2 })) },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top', labels:{ usePointStyle:true, color:C.text, font:{size:9} } } }, scales:{ x:{ stacked:true, grid:{ color:C.border }, ticks:{ font:{ size:8 }, maxRotation:45 } }, y:{ stacked:true, title:{ display:true, text:'Projects', color:C.gold }, grid:{ color:C.border } } } }
+  });
+  document.getElementById('statusLegend').innerHTML = statusKeys.map((s,i)=>`<span class="leg-item"><span class="leg-dot" style="background:${statusCols[i]}"></span>${s}</span>`).join('');
+
+  /* TOP LOCATIONS */
+  const locCount = {};
+  data.forEach(r=>{ locCount[r.loc] = (locCount[r.loc]||0)+1; });
+  const topLocs = Object.entries(locCount).sort((a,b)=>b[1]-a[1]).slice(0, CFG.TOP_LOCATIONS_COUNT||15);
+  mkChart('locationBar', { type:'bar', data:{ labels: topLocs.map(([l])=>l), datasets:[{ label:'Projects', data:topLocs.map(([,n])=>n), backgroundColor:C.purple+'88', borderColor:C.purple, borderRadius:4 }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ title:{ display:true, text:'Projects', color:C.gold }, grid:{ color:C.border } }, y:{ grid:{ display:false }, ticks:{ font:{ size:9 } } } } } });
+
+  /* AVG PRICE BY LOCATION */
+  const locPrices = {};
+  data.forEach(r => { if(r.px && r.px>0) { if(!locPrices[r.loc]) locPrices[r.loc]=[]; locPrices[r.loc].push(r.px); } });
+  const locAvg = Object.entries(locPrices).filter(([,a])=>a.length>=2).map(([l,a])=>[l, Math.round(a.reduce((x,y)=>x+y,0)/a.length)]).sort((a,b)=>b[1]-a[1]).slice(0, CFG.TOP_PRICE_LOCATIONS_COUNT||12);
+  mkChart('locationPriceBar', { type:'bar', data:{ labels: locAvg.map(([l])=>l), datasets:[{ label:'Avg Price', data:locAvg.map(([,p])=>p), backgroundColor:C.orange+'88', borderColor:C.orange, borderRadius:4 }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx=>`${fmtPrice(ctx.raw)} per perch` } } }, scales:{ x:{ title:{ display:true, text:'LKR per Perch', color:C.gold }, ticks:{ callback: v=>fmtPrice(v) } }, y:{ grid:{ display:false }, ticks:{ font:{ size:9 } } } } } });
+
+  /* PLOT SIZE ANALYSIS (NO PRICE, only bar counts) */
+  const rawBuckets = (CFG.PLOT_BUCKETS && CFG.PLOT_BUCKETS.length) ? CFG.PLOT_BUCKETS : [{ label:'6–8 perches', max:8 },{ label:'9–11 perches', max:11 },{ label:'12–15 perches', max:15 },{ label:'16–20 perches', max:20 },{ label:'20+ perches', max:9999 }];
+  const buckets = rawBuckets.map(b => ({ ...b, count:0 }));
+  data.forEach(r => { if(r.ep && r.ep>0) { const bucket = buckets.find(b => r.ep <= b.max); if(bucket) bucket.count++; } });
+  mkChart('plotSizeBar', { type:'bar', data:{ labels: buckets.map(b=>b.label), datasets:[{ label:'Projects', data: buckets.map(b=>b.count), backgroundColor:C.cyan+'88', borderColor:C.cyan, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => `Projects: ${ctx.raw}` } } }, scales:{ x:{ grid:{ color:C.border }, ticks:{ font:{ size:9 } } }, y:{ title:{ display:true, text:'Project Count', color:C.cyan }, beginAtZero:true } } } });
+  const totalPlotProjects = buckets.reduce((s,b)=>s+b.count,0);
+  const topBucket = buckets.reduce((a,b)=>b.count>a.count?b:a, buckets[0]);
+  document.getElementById('plotInsight').innerHTML = `${topBucket.label} is the most common plot size with ${topBucket.count} projects. ${totalPlotProjects} projects have plot size data.`;
+
+  /* EXECUTIVE SUMMARY */
+  const top3co = coList.slice(0,3).map(c=>`${c.name} (${c.projects} projects)`).join(', ');
+  const autoText = `Top competitors: ${top3co}. Monitor their pricing and new location launches closely.`;
+  const insightItems = (CFG.INSIGHTS && CFG.INSIGHTS.length) ? CFG.INSIGHTS : [{ icon:'🔴', title:'Market Saturation Zones', text:'Homagama, Athurugiriya, Piliyandala show highest density.' }, { icon:'⚡', title:'Top Competitive Threats', text:'{AUTO}' }];
+  document.getElementById('insightGrid').innerHTML = insightItems.map(item => `<div class="insight"><h4>${item.icon || ''} ${item.title || ''}</h4><p>${(item.text || '') === '{AUTO}' ? autoText : (item.text || '')}</p></div>`).join('');
+
+  /* FACEBOOK TABLES */
+  const activeFb = facebookAds.filter(ad => ad.Price && ad.Price > 0);
+  document.getElementById('fbActiveTableBody').innerHTML = activeFb.slice(0,30).map(ad => `<tr><td>${ad.Company}</td><td>${ad.Location}</td><td>${fmtPrice(ad.Price)}</td><td>${ad.PubDate}</td></tr>`).join('');
+  const opportunities = [...activeFb].sort((a,b)=>new Date(b.PubDate)-new Date(a.PubDate)).slice(0,25);
+  document.getElementById('fbOpportunitiesBody').innerHTML = opportunities.map(ad => `<tr><td>${ad.Company}</td><td>${ad.Location}</td><td>${fmtPrice(ad.Price)}</td><td>${ad.PubDate}</td><td><span class="badge b-available">Active</span></td></tr>`).join('');
+}
+
+/* ========== DATA LOADER (same as original) ========== */
+function parseCSV(csvText) {
+  const result = Papa.parse(csvText, { header:false, skipEmptyLines:true });
+  const rows = result.data;
+  if (rows.length < 2) return [];
+  const data = [];
+  let lastCo = '', lastYr = null;
+  for (let i=1;i<rows.length;i++) {
+    const r = rows[i];
+    const co = (r[5] || '').trim();
+    if(co) { lastCo = co; lastYr = parseYear(r[0]); }
+    const loc = (r[7] || '').trim();
+    if(!loc) continue;
+    data.push({ co:lastCo, yr:lastYr, loc:loc, px:cleanPrice(r[8]), st:normStatus(r[9]), tb:cleanNum(r[10]), av:cleanNum(r[11]), ep:cleanNum(r[12]), pn:(r[6]||'').trim()||null });
+  }
+  return data;
+}
+
+async function loadAndRender() {
+  const src = document.getElementById('dataSource');
+  const url = CONFIG.GOOGLE_SHEET_CSV_URL || '';
+  if(url.length > 10) {
+    try {
+      src.textContent = '⏳ Fetching from Google Sheets...';
+      const resp = await fetch(url);
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const csv = await resp.text();
+      const data = parseCSV(csv);
+      if(data.length < 5) throw new Error('Too few rows');
+      renderDashboard(data);
+      src.textContent = `✅ Live · Google Sheets · Updated: ${new Date().toLocaleTimeString()} · ${data.length} projects`;
+    } catch(e) {
+      console.warn(e);
+      src.textContent = `⚠️ Sheets error — falling back to data.json`;
+      await loadJSON(src);
+    }
+  } else { await loadJSON(src); }
+}
+async function loadJSON(src) {
+  try {
+    const resp = await fetch('data.json');
+    const data = await resp.json();
+    renderDashboard(data);
+    src.textContent = `📁 Offline data (data.json) · ${data.length} projects · Set GOOGLE_SHEET_CSV_URL for live`;
+  } catch(e) { src.textContent = '❌ Cannot load data.json — check files'; document.getElementById('loader').style.display = 'none'; }
+}
+loadAndRender();
+const mins = CONFIG.AUTO_REFRESH_MINUTES || 0;
+if(mins>0) setInterval(loadAndRender, mins*60000);
+</script>
+</body>
+</html>
