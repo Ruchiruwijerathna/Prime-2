@@ -51,7 +51,7 @@ const CONFIG = {
      Leave "" to use the offline fb_data.json file instead.
   ════════════════════════════════════════════════════════ */
 
-  FACEBOOK_SHEET_CSV_URL: "",
+  FACEBOOK_SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRTG_z9yrnCzjeMgqlZBt7BNaGRPXf5MxnaE5_SL_HYk9wz6lGU3Fs3tJWK3vTUlWMLTyZK2U228OuI/pub?gid=1318686992&single=true&output=csv",
 
 
   /* ════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ const CONFIG = {
      Leave "" if you haven't added your data yet.
   ════════════════════════════════════════════════════════ */
 
-  YOUR_COMPANY: "",    // e.g. "Prime Lands"  ← edit this
+  YOUR_COMPANY: "Prime Lands",    // e.g. "Prime Lands"  ← edit this
 
 
   /* ════════════════════════════════════════════════════════
@@ -72,7 +72,7 @@ const CONFIG = {
 
   DASHBOARD_TITLE:    "Land Market — Competitor Analysis",
   DASHBOARD_SUBTITLE: "Real Estate Land Data Dashboard · 2026",
-  DATA_DATE:          "📅 Updated: 2026 April",
+  DATA_DATE:          "Updated: 2026 May",
 
 
   /* ════════════════════════════════════════════════════════
@@ -88,9 +88,9 @@ const CONFIG = {
      📊  CHART SIZES
   ════════════════════════════════════════════════════════ */
 
-  TOP_COMPANIES_COUNT:       20,   // companies shown in bubble & status charts
-  TOP_LOCATIONS_COUNT:       20,   // locations in Top Locations chart
-  TOP_PRICE_LOCATIONS_COUNT: 20,   // locations in Avg Price chart
+  TOP_COMPANIES_COUNT:       25,   // companies shown in bubble & status charts
+  TOP_LOCATIONS_COUNT:       25,   // locations in Top Locations chart
+  TOP_PRICE_LOCATIONS_COUNT: 25,   // locations in Avg Price chart
   CURRENT_YEAR:              2026, // used to calculate years in business
 
 
